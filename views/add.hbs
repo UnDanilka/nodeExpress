@@ -1,8 +1,19 @@
 <h1>Add course</h1>
 
-<form action="/add" method="POST">
+{{#if error}}
+  <p class="alert">{{error}}</p>
+{{/if}}
+
+<form action="/add" method="POST" novalidate>
   <div class="input-field">
-    <input id="title" name="title" type="text" class="validate" required />
+    <input
+      id="title"
+      name="title"
+      type="text"
+      class="validate"
+      required
+      value={{data.title}}
+    />
     <label for="title">Name of course</label>
     <span class="helper-text" data-error="enter name"></span>
   </div>
@@ -21,12 +32,19 @@
   </div>
 
   <div class="input-field">
-    <input id="img" name="img" type="text" class="validate" required />
+    <input
+      id="img"
+      name="img"
+      type="text"
+      class="validate"
+      required
+      value={{data.price}}
+    />
     <label for="img">URL of picture</label>
     <span class="helper-text" data-error="enter url"></span>
   </div>
 
-  <input type="hidden" name="_csrf" value={{csrf}} />
+  <input type="hidden" name="_csrf" value={{csrf}} value={{data.img}} />
 
   <button class="btn btn-primary">Add course</button>
 </form>

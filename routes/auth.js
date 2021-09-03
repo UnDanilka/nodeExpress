@@ -8,6 +8,8 @@ const sendgrid = require("nodemailer-sendgrid-transport");
 const keys = require("../keys");
 const regEmail = require("../emails/registration");
 const resetEmail = require("../emails/reset");
+const { validationResult } = require("express-validator");
+const { registerValidators } = require("../utils/validators");
 
 const transporter = nodemailer.createTransport(
   sendgrid({
@@ -62,30 +64,28 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", registerValidators, async (req, res) => {
   try {
-    const { email, password, repeat, name } = req.body;
-    const candidate = await User.findOne({
+    const { email, password, name } = req.body;
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      req.flash("registerError", errors.array()[0].msg);
+      return res.status(422).redirect("/auth/login#register");
+    }
+
+    const hashPassword = await bcrypt.hash(password, 10);
+    const user = new User({
       email,
+      name,
+      password: hashPassword,
+      cart: { items: [] },
     });
 
-    if (candidate) {
-      req.flash("registerError", "We have user with same email");
-      res.redirect("/auth/login#register");
-    } else {
-      const hashPassword = await bcrypt.hash(password, 10);
-      const user = new User({
-        email,
-        name,
-        password: hashPassword,
-        cart: { items: [] },
-      });
+    await user.save();
 
-      await user.save();
-
-      await transporter.sendMail(regEmail(email));
-      res.redirect("/auth/login#login");
-    }
+    await transporter.sendMail(regEmail(email));
+    res.redirect("/auth/login#login");
   } catch (e) {
     console.log(e);
   }
@@ -152,6 +152,28 @@ router.post("/reset", (req, res) => {
   }
 
   return console.log("hi");
+});
+
+router.post("/password", async (req, res) => {
+  try {
+    const user = await User.findOne({
+      _id: req.body.userId,
+      resetToken: req.body.token,
+      resetTokenExp: { $gt: Date.now() },
+    });
+
+    if (user) {
+      user.password = await bcrypt.hash(req.body.password, 10);
+      user.resetToken = undefined;
+      user.resetTokenExp = undefined;
+      res.redirect("/auth/login");
+    } else {
+      req.flash("loginError", "Old Token");
+      res.redirect("/auth/login");
+    }
+  } catch (e) {
+    console.log(e);
+  }
 });
 
 module.exports = router;
